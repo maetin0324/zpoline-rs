@@ -69,7 +69,28 @@ cargo build --release -p zpoline_samples
 zpoline-rsは `LD_PRELOAD` 環境変数を使用してプログラムに注入します：
 
 ```bash
+# デフォルトフックライブラリを自動検出（dlmopen使用）
 LD_PRELOAD=./target/release/libzpoline_loader.so ./target/release/zpoline_samples
+
+# フックライブラリなし（組み込みフック使用）
+# libzpoline_hook_impl.soが見つからない場合、自動的にこのモードになります
+```
+
+### dlmopen（別ネームスペース）対応
+
+zpoline-rsは、フック本体を別のリンカーネームスペースにロードすることで、より強固な再入防止を実現します。
+
+**デフォルトフックライブラリの使用**:
+```bash
+# libzpoline_hook_impl.soが自動的に検出されてロードされます
+LD_PRELOAD=./target/release/libzpoline_loader.so ./your_program
+```
+
+**カスタムフックライブラリの指定**:
+```bash
+# ZPOLINE_HOOK環境変数でカスタムフックを指定
+ZPOLINE_HOOK=/path/to/custom_hook.so \
+LD_PRELOAD=./target/release/libzpoline_loader.so ./your_program
 ```
 
 ### サンプルプログラムの実行
@@ -101,6 +122,20 @@ LD_PRELOAD=./target/release/libzpoline_loader.so ./my_program
 
 ### 環境変数
 
+#### ZPOLINE_HOOK
+
+カスタムフックライブラリのパスを指定します：
+
+```bash
+export ZPOLINE_HOOK="/path/to/custom_hook.so"
+LD_PRELOAD=./target/release/libzpoline_loader.so ./my_program
+```
+
+**動作**:
+1. `ZPOLINE_HOOK`が設定されている場合、そのパスのライブラリをdlmopenでロード
+2. 未設定の場合、`libzpoline_hook_impl.so`を同じディレクトリから自動検出
+3. どちらも見つからない場合、組み込みフックを使用（dlmopenなし）
+
 #### ZPOLINE_EXCLUDE
 
 書き換えから除外するライブラリパスを指定できます：
@@ -112,7 +147,7 @@ LD_PRELOAD=./target/release/libzpoline_loader.so ./my_program
 
 ## カスタムフックの実装
 
-独自のフック関数を実装できます：
+### 方法1: アプリケーション内でのフック登録
 
 ```rust
 use zpoline_hook_api::{SyscallRegs, __hook_init};
@@ -139,6 +174,58 @@ fn main() {
     println!("Hello, world!");
 }
 ```
+
+### 方法2: dlmopenでロードされる独立ライブラリ（推奨）
+
+**Cargo.toml**:
+```toml
+[package]
+name = "my_custom_hook"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+zpoline_hook_api = { path = "/path/to/zpoline_hook_api" }
+```
+
+**src/lib.rs**:
+```rust
+use zpoline_hook_api::SyscallRegs;
+
+#[no_mangle]
+pub extern "C" fn zpoline_hook_function(regs: &mut SyscallRegs) -> i64 {
+    // カスタムロジックを実装
+    if regs.rax == 1 {  // write syscall
+        eprintln!("[CUSTOM] write intercepted");
+    }
+
+    unsafe { zpoline_hook_api::raw_syscall(regs) }
+}
+
+#[no_mangle]
+pub extern "C" fn zpoline_hook_init() -> *const () {
+    eprintln!("[CUSTOM] Custom hook library loaded");
+    zpoline_hook_function as *const ()
+}
+```
+
+**ビルドと使用**:
+```bash
+# ビルド
+cargo build --release
+
+# 使用
+ZPOLINE_HOOK=./target/release/libmy_custom_hook.so \
+LD_PRELOAD=/path/to/libzpoline_loader.so ./your_program
+```
+
+**メリット**:
+- フック本体が別ネームスペースに隔離される
+- より強固な再入防止
+- アプリケーションコードを変更せずにフックを交換可能
 
 ## トラブルシューティング
 

@@ -1,5 +1,10 @@
 use std::cell::Cell;
 use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::Mutex;
+
+pub mod syscall_hooks;
+
+pub use syscall_hooks::SyscallHooks;
 
 /// システムコールのレジスタ状態
 /// x86-64のシステムコール呼び出し規約に従う
@@ -59,6 +64,10 @@ pub extern "C" fn default_hook(regs: &mut SyscallRegs) -> i64 {
 /// グローバルなフック関数ポインタ
 static HOOK_FUNCTION: AtomicPtr<()> = AtomicPtr::new(default_hook as *mut ());
 
+/// SyscallHooksを実装した型のグローバルな保持
+/// Mutexで保護されたBox<dyn SyscallHooks>
+static HOOK_TRAIT_OBJECT: Mutex<Option<Box<dyn SyscallHooks>>> = Mutex::new(None);
+
 /// フック関数を設定
 #[no_mangle]
 pub extern "C" fn __hook_init(hook_fn: HookFn) {
@@ -76,10 +85,15 @@ thread_local! {
     static IN_HOOK: Cell<bool> = const { Cell::new(false) };
 }
 
+static HOOK_ENTRY_CALL_COUNT: AtomicUsize = AtomicUsize::new(0);
+
 /// フックエントリポイント
 /// これはVA=0トランポリンから呼ばれる
 #[no_mangle]
 pub extern "C" fn hook_entry(regs: &mut SyscallRegs) -> i64 {
+    // デバッグ用: hook_entryが呼ばれたことを記録
+    HOOK_ENTRY_CALL_COUNT.fetch_add(1, Ordering::Relaxed);
+
     // 再入チェック
     if IN_HOOK.with(|in_hook| {
         if in_hook.get() {
@@ -102,6 +116,12 @@ pub extern "C" fn hook_entry(regs: &mut SyscallRegs) -> i64 {
     IN_HOOK.with(|in_hook| in_hook.set(false));
 
     result
+}
+
+/// デバッグ用: hook_entryが呼ばれた回数を取得
+#[no_mangle]
+pub extern "C" fn get_hook_entry_call_count() -> usize {
+    HOOK_ENTRY_CALL_COUNT.load(Ordering::Relaxed)
 }
 
 /// raw syscallの実装
@@ -163,6 +183,102 @@ pub unsafe extern "C" fn raw_syscall_bypass(
 /// 便利な関数: 再入ガードの状態を取得
 pub fn is_in_hook() -> bool {
     IN_HOOK.with(|in_hook| in_hook.get())
+}
+
+/// SyscallHooksトレイトを実装した型を登録する
+///
+/// この関数は、traitベースのフック機構を有効にします。
+/// 一度登録されると、システムコールはSyscallHooksのメソッドにディスパッチされます。
+///
+/// # 使用例
+///
+/// ```no_run
+/// use zpoline_hook_api::{SyscallHooks, register_syscall_hooks};
+///
+/// struct MyHooks;
+///
+/// impl SyscallHooks for MyHooks {
+///     fn hook_write(&mut self, fd: i32, buf: *const u8, count: usize) -> isize {
+///         eprintln!("[CUSTOM] write called");
+///         Self::default_write(fd, buf as *const _, count)
+///     }
+/// }
+///
+/// fn main() {
+///     register_syscall_hooks(MyHooks);
+///     // これ以降、システムコールはMyHooksにディスパッチされる
+/// }
+/// ```
+pub fn register_syscall_hooks<T: SyscallHooks>(hooks: T) {
+    // SyscallHooksをグローバルに保存
+    let mut guard = HOOK_TRAIT_OBJECT.lock().unwrap();
+    *guard = Some(Box::new(hooks));
+    drop(guard); // 明示的にロックを解放
+
+    // フック関数として trait_based_hook を設定
+    __hook_init(trait_based_hook);
+}
+
+use std::sync::atomic::AtomicUsize;
+static TRAIT_HOOK_CALL_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+/// traitベースのフック関数
+/// SyscallHooksトレイトのメソッドにディスパッチする
+extern "C" fn trait_based_hook(regs: &mut SyscallRegs) -> i64 {
+    // デバッグ用: この関数が呼ばれたことを記録
+    TRAIT_HOOK_CALL_COUNT.fetch_add(1, Ordering::Relaxed);
+
+    // HOOK_TRAIT_OBJECTからフックオブジェクトを取得
+    let mut guard = match HOOK_TRAIT_OBJECT.lock() {
+        Ok(g) => g,
+        Err(_e) => {
+            // ロック失敗時はデフォルトのsyscallを実行
+            return unsafe { raw_syscall(regs) };
+        }
+    };
+
+    if let Some(ref mut hooks) = *guard {
+        syscall_hooks::dispatch_syscall_hooks(hooks.as_mut(), regs)
+    } else {
+        // フックが登録されていない場合はデフォルトのsyscallを実行
+        unsafe { raw_syscall(regs) }
+    }
+}
+
+/// デバッグ用: trait_based_hookが呼ばれた回数を取得
+#[no_mangle]
+pub extern "C" fn get_trait_hook_call_count() -> usize {
+    TRAIT_HOOK_CALL_COUNT.load(Ordering::Relaxed)
+}
+
+/// 登録されたSyscallHooksをディスパッチするフック関数
+///
+/// この関数は、カスタムフックライブラリの`zpoline_hook_init()`から
+/// 返すことができます。事前に`register_syscall_hooks()`を呼び出して
+/// フックを登録しておく必要があります。
+///
+/// # 使用例
+///
+/// ```no_run
+/// use zpoline_hook_api::{SyscallHooks, register_syscall_hooks, get_trait_dispatch_hook};
+/// use ctor::ctor;
+///
+/// struct MyHooks;
+/// impl SyscallHooks for MyHooks { /* ... */ }
+///
+/// #[ctor]
+/// fn init() {
+///     register_syscall_hooks(MyHooks);
+/// }
+///
+/// #[no_mangle]
+/// pub extern "C" fn zpoline_hook_init() -> *const () {
+///     get_trait_dispatch_hook()
+/// }
+/// ```
+#[no_mangle]
+pub extern "C" fn get_trait_dispatch_hook() -> *const () {
+    trait_based_hook as *const ()
 }
 
 #[cfg(test)]

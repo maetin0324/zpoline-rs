@@ -138,6 +138,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "zpoline_hook_impl"
+version = "0.1.0"
+dependencies = [
+ "zpoline_hook_api",
+]
+
+[[package]]
+name = "zpoline_hook_trait_example"
+version = "0.1.0"
+dependencies = [
+ "ctor",
+ "libc",
+ "zpoline_hook_api",
+]
+
+[[package]]
 name = "zpoline_loader"
 version = "0.1.0"
 dependencies = [
@@ -162,6 +178,7 @@ dependencies = [
 name = "zpoline_samples"
 version = "0.1.0"
 dependencies = [
+ "ctor",
  "libc",
  "zpoline_hook_api",
 ]

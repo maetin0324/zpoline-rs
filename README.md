@@ -4,17 +4,30 @@
 
 ## 実装状況
 
-**✅ 基本実装完了（2025-10-28）**
+**✅ 実装完了・動作確認済み（2025-10-28）**
 
 - ✅ zpoline_loader（cdylib, LD_PRELOAD対応）
 - ✅ zpoline_rewriter（iced-x86による命令デコードと書き換え）
 - ✅ zpoline_hook_api（フックABI、raw syscall、TLS再入ガード）
+- ✅ **Trait-based Hooks（型安全なsyscallフック機構）**
+- ✅ zpoline_hook_impl（デフォルトフックライブラリ、dlmopen対応）
+- ✅ zpoline_hook_trait_example（trait-based hooks実装例）
+- ✅ dlmopen別ネームスペースロード機能（環境変数ZPOLINE_HOOK対応）
 - ✅ サンプルプログラム（システムコールトレーサー）
-- ✅ ドキュメント（USAGE.md、実装進捗レポート）
+- ✅ ドキュメント（USAGE.md、TRAIT_HOOKS_USAGE.md、実装進捗レポート、最終レポート）
+- ✅ **実機での動作確認成功（621個のsyscall命令を書き換え、dlmopen動作確認済み）**
 
-詳細は [USAGE.md](USAGE.md) および [.claude_log/implementation_progress.md](.claude_log/implementation_progress.md) を参照してください。
+詳細は以下を参照：
+- [USAGE.md](USAGE.md) - 使用方法とトラブルシューティング
+- **[TRAIT_HOOKS_USAGE.md](TRAIT_HOOKS_USAGE.md) - Trait-based Hooks使用ガイド**
+- [.claude_log/implementation_progress.md](.claude_log/implementation_progress.md) - 実装進捗
+- [.claude_log/final_report.md](.claude_log/final_report.md) - 最終レポートと技術詳細
+- [.claude_log/dlmopen_implementation.md](.claude_log/dlmopen_implementation.md) - dlmopen実装詳細
+- [.claude_log/dlmopen_verification.md](.claude_log/dlmopen_verification.md) - dlmopen動作確認レポート
 
 ## クイックスタート
+
+### 基本的な使用方法
 
 ```bash
 # ビルド
@@ -25,6 +38,17 @@ sudo sysctl -w vm.mmap_min_addr=0
 
 # サンプル実行
 LD_PRELOAD=./target/release/libzpoline_loader.so ./target/release/zpoline_samples
+```
+
+### Trait-based Hooksの使用
+
+```bash
+# Trait-based hooksのサンプルを使用
+ZPOLINE_HOOK=./target/release/libzpoline_hook_trait_example.so \
+LD_PRELOAD=./target/release/libzpoline_loader.so \
+./your_program
+
+# 詳細は TRAIT_HOOKS_USAGE.md を参照
 ```
 
 ---

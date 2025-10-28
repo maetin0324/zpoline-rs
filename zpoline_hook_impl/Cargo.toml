@@ -1,12 +1,12 @@
 [package]
-name = "zpoline_hook_api"
+name = "zpoline_hook_impl"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
-libc.workspace = true
+zpoline_hook_api = { path = "../zpoline_hook_api" }

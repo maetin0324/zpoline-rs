@@ -1,5 +1,6 @@
 mod init;
 mod trampoline;
+mod dlmopen;
 
 use ctor::ctor;
 use std::sync::Once;
@@ -39,6 +40,23 @@ fn zpoline_init() {
                 eprintln!("[zpoline] ERROR: Failed to rewrite syscalls: {}", e);
                 std::process::exit(1);
             }
+        }
+
+        // フックライブラリのロード（オプション）
+        if let Some(lib_path) = dlmopen::get_hook_library_path() {
+            match dlmopen::load_hook_library(Some(&lib_path)) {
+                Ok(hook_fn) => {
+                    eprintln!("[zpoline] Hook library loaded successfully");
+                    // フック関数を登録
+                    zpoline_hook_api::__hook_init(hook_fn);
+                }
+                Err(e) => {
+                    eprintln!("[zpoline] Warning: Failed to load hook library: {}", e);
+                    eprintln!("[zpoline] Continuing with default hook");
+                }
+            }
+        } else {
+            eprintln!("[zpoline] Using built-in default hook (no separate namespace)");
         }
 
         eprintln!("[zpoline] Initialization complete!");

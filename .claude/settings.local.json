@@ -5,7 +5,18 @@
       "Bash(cargo new:*)",
       "Bash(tree:*)",
       "Bash(cargo check:*)",
-      "Bash(cargo build:*)"
+      "Bash(cargo build:*)",
+      "Bash(cat:*)",
+      "Bash(LD_PRELOAD=./target/release/libzpoline_loader.so ./target/release/examples/simple_hooks:*)",
+      "Bash(LD_PRELOAD=./target/release/libzpoline_loader.so ./target/release/zpoline_samples:*)",
+      "Bash(cargo clean:*)",
+      "Bash(env LD_PRELOAD=./target/release/libzpoline_loader.so ./target/release/examples/simple_hooks:*)",
+      "Bash(nm:*)",
+      "Bash(env LD_PRELOAD=\"./target/release/libzpoline_hook_api.so:./target/release/libzpoline_loader.so\" ./target/release/examples/simple_hooks)",
+      "Bash(LD_DEBUG=symbols LD_PRELOAD=\"./target/release/libzpoline_hook_api.so:./target/release/libzpoline_loader.so\" ./target/release/examples/simple_hooks:*)",
+      "Bash(LD_PRELOAD=\"./target/release/libzpoline_hook_api.so:./target/release/libzpoline_loader.so\" ./target/release/examples/simple_hooks:*)",
+      "Bash(rustc:*)",
+      "Bash(ZPOLINE_HOOK=./target/release/libzpoline_hook_trait_example.so LD_PRELOAD=./target/release/libzpoline_loader.so ./test_program:*)"
     ],
     "deny": [],
     "ask": []

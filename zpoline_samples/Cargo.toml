@@ -8,3 +8,12 @@ license.workspace = true
 [dependencies]
 zpoline_hook_api = { path = "../zpoline_hook_api" }
 libc.workspace = true
+ctor = "0.2"
+
+[[example]]
+name = "trait_hooks"
+path = "examples/trait_hooks.rs"
+
+[[example]]
+name = "simple_hooks"
+path = "examples/simple_hooks.rs"

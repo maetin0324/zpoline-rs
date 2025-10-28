@@ -5,6 +5,8 @@ members = [
     "zpoline_hook_api",
     "zpoline_rewriter",
     "zpoline_samples",
+    "zpoline_hook_impl",
+    "zpoline_hook_trait_example",
 ]
 
 [workspace.package]
