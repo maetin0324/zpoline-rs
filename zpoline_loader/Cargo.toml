@@ -1,0 +1,16 @@
+[package]
+name = "zpoline_loader"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+zpoline_rewriter = { path = "../zpoline_rewriter" }
+zpoline_hook_api = { path = "../zpoline_hook_api" }
+libc.workspace = true
+nix.workspace = true
+ctor = "0.2"

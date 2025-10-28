@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = [
+    "zpoline_loader",
+    "zpoline_hook_api",
+    "zpoline_rewriter",
+    "zpoline_samples",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["zpoline-rs contributors"]
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+libc = "0.2"
+nix = { version = "0.29", features = ["mman", "process"] }
+iced-x86 = "1.21"

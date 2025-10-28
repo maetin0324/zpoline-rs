@@ -1,0 +1,12 @@
+[package]
+name = "zpoline_rewriter"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+libc.workspace = true
+nix.workspace = true
+iced-x86.workspace = true
+page_size = "0.6"

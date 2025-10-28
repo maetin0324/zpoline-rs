@@ -1,0 +1,10 @@
+[package]
+name = "zpoline_samples"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+zpoline_hook_api = { path = "../zpoline_hook_api" }
+libc.workspace = true
